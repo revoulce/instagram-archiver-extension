@@ -1,0 +1,22 @@
+body { width: 320px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #fafafa; }
+.container { padding: 10px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #dbdbdb; padding-bottom: 10px; }
+h2 { margin: 0; font-size: 16px; }
+
+.tabs button { background: none; border: none; cursor: pointer; padding: 5px 10px; opacity: 0.5; font-weight: 600; }
+.tabs button.active { opacity: 1; border-bottom: 2px solid #262626; }
+
+.form-group { margin-bottom: 10px; }
+label { display: block; font-size: 12px; color: #8e8e8e; margin-bottom: 4px; }
+input { width: 100%; padding: 8px; border: 1px solid #dbdbdb; border-radius: 3px; box-sizing: border-box; }
+
+.primary-btn { width: 100%; background: #0095f6; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: 600; cursor: pointer; }
+.secondary-btn { width: 100%; background: transparent; color: #ed4956; border: 1px solid #dbdbdb; padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 12px; }
+
+ul { list-style: none; padding: 0; margin: 0; }
+.log-item { background: white; border: 1px solid #dbdbdb; border-radius: 4px; padding: 8px; margin-bottom: 8px; font-size: 12px; }
+.log-item.error { border-left: 3px solid #ed4956; }
+.log-item.success { border-left: 3px solid #0095f6; }
+.log-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #262626; font-weight: 500; margin: 2px 0; }
+.log-msg { color: #8e8e8e; }
+.empty { text-align: center; color: #8e8e8e; padding: 10px; }

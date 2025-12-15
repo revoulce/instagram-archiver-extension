@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insta Archiver</title>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h2>Archiver</h2>
+        <div class="tabs">
+            <button id="tab-stats" class="active">Stats</button>
+            <button id="tab-settings">Settings</button>
+        </div>
+    </header>
+
+    <main id="view-stats">
+        <ul id="log-list">
+            <!-- Logs will appear here -->
+        </ul>
+        <button id="clear-logs" class="secondary-btn">Clear Logs</button>
+    </main>
+
+    <main id="view-settings" style="display: none;">
+        <div class="form-group">
+            <label>Server URL</label>
+            <input type="text" id="serverUrl" placeholder="http://localhost:3000">
+        </div>
+        <div class="form-group">
+            <label>Secret Key</label>
+            <input type="password" id="secretKey" placeholder="Secret from .env">
+        </div>
+        <button id="save-settings" class="primary-btn">Save Settings</button>
+        <p id="save-msg"></p>
+    </main>
+</div>
+<script src="src/popup.js"></script>
+</body>
+</html>
