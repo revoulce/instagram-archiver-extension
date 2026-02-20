@@ -1,4 +1,4 @@
-// Иконка для нашей кнопки
+// --- КОНСТАНТЫ ---
 const DOWNLOAD_ICON = `
 <svg aria-label="Archive" class="ia-icon" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24">
   <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
@@ -11,168 +11,239 @@ const LOADING_ICON = `
   <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5"></circle>
 </svg>`;
 
+const processedElements = new WeakSet();
+
+// --- ИНИЦИАЛИЗАЦИЯ ---
 function init() {
-    injectButtons();
+    runChecks();
 
-    let timeout;
     const observer = new MutationObserver((mutations) => {
-        // 1. ИГНОРИРУЕМ изменения внутри наших кнопок
-        // Если изменение произошло внутри .ia-btn (смена иконки), мы ничего не делаем.
-        const isInternalChange = mutations.some(m => m.target.closest && m.target.closest('.ia-btn'));
-        if (isInternalChange) return;
-
-        clearTimeout(timeout);
-        timeout = setTimeout(injectButtons, 200);
+        const isInternal = mutations.some(m => m.target.closest && m.target.closest('.ia-btn'));
+        if (isInternal) return;
+        runChecks();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
-function injectButtons() {
-    injectReelAndFeedButtons();
-    injectStoryButtons();
+function runChecks() {
+    injectFeed();
+    injectReels();
+    injectStories();
 }
 
-function injectReelAndFeedButtons() {
-    const svgs = document.querySelectorAll('svg[height="24"], svg[width="24"]');
+// --- 1. FEED ---
+function injectFeed() {
+    const articles = document.querySelectorAll('article');
+    articles.forEach(article => {
+        if (processedElements.has(article)) return;
 
-    svgs.forEach(svg => {
-        if (svg.classList.contains('ia-icon') || svg.closest('.ia-btn')) return;
-        if (svg.closest('nav') || svg.closest('header')) return;
+        const buttons = article.querySelectorAll('div[role="button"]');
+        let targetBtn = null;
 
-        const btn = svg.closest('div[role="button"], button');
-        if (!btn) return;
+        for (const btn of buttons) {
+            const svg = btn.querySelector('svg');
+            if (!svg || svg.getAttribute('height') !== '24') continue;
 
-        const containerInfo = findContainer(btn);
+            const parent = btn.parentElement;
+            const style = window.getComputedStyle(parent);
+            if (style.display === 'flex' && style.flexDirection === 'row') {
+                targetBtn = parent;
+                break;
+            }
+        }
 
-        if (containerInfo) {
-            const { container, isReel } = containerInfo;
-
-            // 2. ПРОВЕРКА ПО КЛАССУ КОНТЕЙНЕРА (Надежнее чем querySelector)
-            if (container.classList.contains('ia-has-btn')) return;
-
-            // Проверяем валидность (минимум 2 большие кнопки рядом)
-            const siblingSvgs = container.querySelectorAll('svg[height="24"]');
-            if (siblingSvgs.length < 2) return;
-
-            const newBtn = createButton(isReel);
-
-            newBtn.onclick = async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (newBtn.dataset.loading === "true") return;
-                const url = getPostUrl(newBtn);
-                await sendTask(url, newBtn);
-            };
-
-            container.appendChild(newBtn);
-            // Помечаем контейнер, что в нем уже есть кнопка
-            container.classList.add('ia-has-btn');
+        if (targetBtn && !targetBtn.querySelector('.ia-btn')) {
+            const btn = createButton('post');
+            btn.onclick = (e) => handleClick(e, btn, () => getFeedUrl(article));
+            targetBtn.appendChild(btn);
+            processedElements.add(article);
         }
     });
 }
 
-function findContainer(triggerBtn) {
-    let currentEl = triggerBtn.parentElement;
-
-    for (let i = 0; i < 5; i++) {
-        if (!currentEl) break;
-
-        const style = window.getComputedStyle(currentEl);
-
-        // REELS
-        if (style.display === 'flex' && style.flexDirection === 'column') {
-            if (currentEl.childElementCount >= 3) {
-                return { container: currentEl, isReel: true };
-            }
-        }
-
-        // FEED
-        if (style.display === 'flex' && style.flexDirection === 'row') {
-            if (currentEl.childElementCount >= 3 && currentEl.clientWidth > currentEl.clientHeight) {
-                return { container: currentEl, isReel: false };
-            }
-        }
-        currentEl = currentEl.parentElement;
-    }
+function getFeedUrl(article) {
+    // В ленте могут быть ссылки с /p/, /reel/ или /reels/
+    const timeLink = article.querySelector('a[href*="/p/"], a[href*="/reel/"], a[href*="/reels/"]');
+    if (timeLink) return cleanUrl(timeLink.href);
     return null;
 }
 
-function getPostUrl(element) {
-    const article = element.closest('article');
-    if (article) {
-        const links = article.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]');
-        for (const link of links) {
-            if (link.href.match(/\/(p|reel)\/[\w-]+\//)) {
-                return link.href;
+// --- 2. REELS ---
+function injectReels() {
+    const potentialSidebars = document.querySelectorAll('div');
+
+    potentialSidebars.forEach(div => {
+        if (processedElements.has(div)) return;
+        if (div.className.includes('ia-btn')) return;
+        if (div.clientWidth > 100) return;
+
+        const svgs = div.querySelectorAll('svg[height="24"]');
+        if (svgs.length < 3) return;
+
+        const style = window.getComputedStyle(div);
+        if (style.display === 'flex' && style.flexDirection === 'column') {
+
+            let videoContainer = div.parentElement;
+            if (videoContainer && videoContainer.parentElement) {
+                videoContainer = videoContainer.parentElement;
+            }
+
+            if (videoContainer && !videoContainer.querySelector('.ia-btn-reel')) {
+                const btn = createButton('reel');
+
+                if (window.getComputedStyle(videoContainer).position === 'static') {
+                    videoContainer.style.position = 'relative';
+                }
+
+                btn.onclick = (e) => handleClick(e, btn, () => getReelUrl(videoContainer, div));
+
+                videoContainer.appendChild(btn);
+                processedElements.add(div);
+                processedElements.add(videoContainer);
             }
         }
-    }
-    return window.location.href;
-}
-
-function injectStoryButtons() {
-    const menuBtns = document.querySelectorAll('div[role="button"] svg circle');
-    menuBtns.forEach(circle => {
-        const btnContainer = circle.closest('div[role="button"]')?.parentElement;
-        if (!btnContainer || btnContainer.querySelector('.ia-story-btn')) return;
-
-        const rect = btnContainer.getBoundingClientRect();
-        if (rect.top > 150) return;
-
-        const btn = createButton(true);
-        btn.classList.add('ia-story-btn');
-
-        btn.onclick = async (e) => {
-            e.stopPropagation();
-            await sendTask(window.location.href, btn);
-        };
-
-        btnContainer.insertBefore(btn, btnContainer.firstChild);
     });
 }
 
-function createButton(isReel) {
+function getReelUrl(container, sidebar) {
+    const loc = window.location.href;
+
+    // 1. АДРЕСНАЯ СТРОКА
+    // Исправленная регулярка: (reels?|p) ловит и 'reel', и 'reels', и 'p'
+    if (loc.match(/\/(reels?|p)\/[\w-]+\/?/)) {
+        return cleanUrl(loc);
+    }
+
+    // 2. ПОИСК ВНУТРИ ССЫЛОК
+    const allLinks = [
+        ...container.querySelectorAll('a'),
+        ...(sidebar ? sidebar.querySelectorAll('a') : [])
+    ];
+
+    for (const link of allLinks) {
+        const href = link.href;
+        // Проверяем наличие /reel/, /reels/ или /p/
+        // Исключаем мусор
+        if ((href.includes('/reel/') || href.includes('/reels/') || href.includes('/p/')) &&
+            !href.includes('/audio/') &&
+            !href.includes('/original_audio/') &&
+            !href.includes('/explore/') &&
+            !href.includes('/tags/') &&
+            !href.includes('/music/')) {
+            return cleanUrl(href);
+        }
+    }
+
+    return null;
+}
+
+// --- 3. STORIES ---
+function injectStories() {
+    const svgs = document.querySelectorAll('svg');
+    svgs.forEach(svg => {
+        const btn = svg.closest('div[role="button"]');
+        if (!btn || processedElements.has(btn)) return;
+
+        const rect = btn.getBoundingClientRect();
+        if (rect.top > 100) return;
+        if (rect.right < window.innerWidth - 200) return;
+
+        const header = btn.parentElement;
+        if (!header) return;
+
+        if (!header.querySelector('.ia-story-btn')) {
+            const newBtn = createButton('story');
+            newBtn.onclick = (e) => handleClick(e, newBtn, () => window.location.href);
+            header.insertBefore(newBtn, btn);
+            processedElements.add(btn);
+        }
+    });
+}
+
+// --- UTILS ---
+
+function createButton(type) {
     const btn = document.createElement('div');
     btn.className = 'x1i10hfl ia-btn';
     btn.setAttribute('role', 'button');
     btn.setAttribute('tabindex', '0');
     btn.innerHTML = DOWNLOAD_ICON;
 
-    if (isReel) {
-        btn.classList.add('ia-btn-reel');
-    } else {
-        btn.classList.add('ia-btn-post');
-    }
+    if (type === 'reel') btn.classList.add('ia-btn-reel');
+    else if (type === 'story') btn.classList.add('ia-story-btn');
+    else btn.classList.add('ia-btn-post');
+
     return btn;
 }
 
-async function sendTask(url, btnElement) {
-    btnElement.dataset.loading = "true";
-    const originalHtml = btnElement.innerHTML;
-    btnElement.innerHTML = LOADING_ICON;
+async function handleClick(e, btn, urlGetter) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (btn.dataset.loading === "true") return;
+
+    const url = urlGetter();
+
+    if (!url) {
+        console.error("InstaArchiver: URL not found", window.location.href);
+        indicateStatus(btn, 'error');
+        return;
+    }
+
+    btn.dataset.loading = "true";
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = LOADING_ICON;
 
     try {
-        const urlObj = new URL(url);
-        url = urlObj.origin + urlObj.pathname;
-    } catch(e) {}
+        const response = await chrome.runtime.sendMessage({ type: 'SEND_URL', url });
 
-    const response = await chrome.runtime.sendMessage({ type: 'SEND_URL', url });
+        if (response && response.success) {
+            indicateStatus(btn, 'success', originalHtml);
+        } else {
+            indicateStatus(btn, 'error', originalHtml);
+        }
+    } catch (err) {
+        console.error(err);
+        indicateStatus(btn, 'error', originalHtml);
+    }
+}
 
-    if (response.success) {
-        btnElement.style.color = '#0095f6';
-        setTimeout(() => {
-            btnElement.innerHTML = originalHtml;
-            btnElement.style.color = '';
-            btnElement.dataset.loading = "false";
-        }, 2000);
+function indicateStatus(btn, status, originalHtml) {
+    if (originalHtml) btn.innerHTML = originalHtml;
+
+    if (status === 'success') {
+        btn.style.color = '#0095f6';
     } else {
-        btnElement.style.color = '#ed4956';
-        setTimeout(() => {
-            btnElement.innerHTML = originalHtml;
-            btnElement.style.color = '';
-            btnElement.dataset.loading = "false";
-        }, 2000);
+        btn.style.color = '#ed4956';
+        if (!originalHtml) btn.innerHTML = DOWNLOAD_ICON;
+    }
+
+    setTimeout(() => {
+        btn.style.color = '';
+        btn.dataset.loading = "false";
+    }, 2000);
+}
+
+function cleanUrl(url) {
+    try {
+        const u = new URL(url);
+        // Регулярка теперь ищет (reels?|p) - то есть 'reel', 'reels' или 'p'
+        // Группа 1: тип, Группа 2: ID
+        const match = u.pathname.match(/\/(reels?|p)\/([\w-]+)/);
+
+        if (match) {
+            // Нормализуем URL до единственного числа, чтобы gallery-dl не путался
+            // Если нашли 'reels', меняем на 'reel'
+            let type = match[1];
+            if (type === 'reels') type = 'reel';
+
+            const id = match[2];
+            return `${u.origin}/${type}/${id}/`;
+        }
+        return u.origin + u.pathname;
+    } catch (e) {
+        return url;
     }
 }
 

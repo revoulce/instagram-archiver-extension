@@ -1,37 +1,61 @@
+/* Базовый контейнер кнопки */
 .ia-btn {
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: transform 0.1s;
-    z-index: 999;
+    z-index: 9999;
 }
+
 .ia-btn:active { transform: scale(0.9); }
 
-/* Рилсы (Вертикально) */
+/* --- 1. FEED (Лента) --- */
+.ia-btn-post {
+    color: inherit; /* Используем цвет текста инсты (черный/белый) */
+    padding: 8px;
+    /* Кнопка встраивается в flex-контейнер */
+}
+
+/* --- 2. REELS (Плавающая кнопка) --- */
 .ia-btn-reel {
-    color: white;
+    position: absolute;
+    /* Позиция в углу (слева вверху), чуть ниже хедера */
+    top: 60px;
+    left: 16px;
+
     width: 40px;
     height: 40px;
-    margin-top: 12px;
-}
-.ia-btn-reel:hover svg { color: #cecece; }
 
-/* Посты (Горизонтально) */
-.ia-btn-post {
-    color: #262626;
-    padding: 8px;
-    margin-left: 8px;
-}
-@media (prefers-color-scheme: dark) {
-    .ia-btn-post { color: #f5f5f5; }
+    color: white;
+
+    /* Полупрозрачный фон (Glassmorphism) */
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 
-/* Spinner & Stories ... */
+.ia-btn-reel:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.ia-btn-reel svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* --- 3. STORIES --- */
+.ia-story-btn {
+    margin-right: 12px;
+    color: white;
+}
+
+/* --- SPINNER --- */
 .ia-spinner circle {
     stroke: currentColor;
     stroke-dasharray: 80; stroke-dashoffset: 0;
     animation: dash 1.5s linear infinite;
 }
 @keyframes dash { 0% { stroke-dashoffset: 80; } 100% { stroke-dashoffset: 0; } }
-.ia-story-btn { margin-right: 15px; }
